@@ -1,8 +1,16 @@
 package com.puresunninetwork.live
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,12 +27,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
 
@@ -39,6 +52,26 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun PureSunniNetworkLiveApp() {
+
+    val context = LocalContext.current
+
+    val cameraPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            // Camera permission result
+        }
+
+    LaunchedEffect(Unit) {
+        if (
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
 
     MaterialTheme {
 
@@ -57,47 +90,26 @@ fun PureSunniNetworkLiveApp() {
                 Text(
                     text = "PURE SUNNI NETWORK",
                     color = Color(0xFFFFD700),
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 26.sp
                 )
 
                 Text(
                     text = "LIVE",
                     color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 18.sp
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(240.dp)
+                        .height(300.dp)
                 ) {
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color(0xFF202020)),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-
-                        Text(
-                            text = "CAMERA PREVIEW",
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = "Camera will appear here",
-                            color = Color.LightGray
-                        )
-                    }
+                    CameraPreview(
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -108,7 +120,11 @@ fun PureSunniNetworkLiveApp() {
                 ) {
 
                     Button(
-                        onClick = { }
+                        onClick = {
+                            cameraPermissionLauncher.launch(
+                                Manifest.permission.CAMERA
+                            )
+                        }
                     ) {
                         Text("CAMERA")
                     }
@@ -152,8 +168,7 @@ fun PureSunniNetworkLiveApp() {
                 ) {
                     Text(
                         text = "🔴  GO LIVE",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 18.sp
                     )
                 }
 
@@ -166,4 +181,60 @@ fun PureSunniNetworkLiveApp() {
             }
         }
     }
+}
+
+@Composable
+fun CameraPreview(
+    modifier: Modifier = Modifier
+) {
+
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    val previewView = remember {
+        PreviewView(context)
+    }
+
+    LaunchedEffect(previewView) {
+
+        val cameraProviderFuture =
+            ProcessCameraProvider.getInstance(context)
+
+        cameraProviderFuture.addListener({
+
+            val cameraProvider = cameraProviderFuture.get()
+
+            val preview = Preview.Builder()
+                .build()
+                .also {
+                    it.surfaceProvider =
+                        previewView.surfaceProvider
+                }
+
+            val cameraSelector =
+                CameraSelector.DEFAULT_BACK_CAMERA
+
+            try {
+
+                cameraProvider.unbindAll()
+
+                cameraProvider.bindToLifecycle(
+                    lifecycleOwner,
+                    cameraSelector,
+                    preview
+                )
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+        }, ContextCompat.getMainExecutor(context))
+    }
+
+    AndroidView(
+        factory = {
+            previewView
+        },
+        modifier = modifier
+    )
 }
