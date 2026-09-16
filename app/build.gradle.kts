@@ -44,9 +44,9 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // Media3 / ExoPlayer
-    implementation("androidx.media3:media3-exoplayer:1.10.1")
-    implementation("androidx.media3:media3-ui:1.10.1")
-    implementation("androidx.media3:media3-session:1.10.1")
+    implementation("androidx.media3:media3-exoplayer:1.9.4")
+    implementation("androidx.media3:media3-ui:1.9.4")
+    implementation("androidx.media3:media3-session:1.9.4")
 
     // CameraX
     implementation("androidx.camera:camera-core:1.5.3")
