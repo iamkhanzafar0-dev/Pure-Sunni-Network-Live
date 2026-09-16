@@ -1,7 +1,9 @@
 package com.puresunninetwork.live
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -55,21 +57,34 @@ fun PureSunniNetworkLiveApp() {
 
     val context = LocalContext.current
 
-    val cameraPermissionLauncher =
+    val permissionLauncher =
         rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            // Camera permission result
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+
+            val cameraGranted =
+                permissions[Manifest.permission.CAMERA] == true
+
+            val microphoneGranted =
+                permissions[Manifest.permission.RECORD_AUDIO] == true
+
+            if (cameraGranted && microphoneGranted) {
+                startLiveService(context)
+            }
         }
 
     LaunchedEffect(Unit) {
-        if (
+
+        val cameraGranted =
             ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.CAMERA
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            ) == PackageManager.PERMISSION_GRANTED
+
+        if (!cameraGranted) {
+            permissionLauncher.launch(
+                arrayOf(Manifest.permission.CAMERA)
+            )
         }
     }
 
@@ -121,8 +136,8 @@ fun PureSunniNetworkLiveApp() {
 
                     Button(
                         onClick = {
-                            cameraPermissionLauncher.launch(
-                                Manifest.permission.CAMERA
+                            permissionLauncher.launch(
+                                arrayOf(Manifest.permission.CAMERA)
                             )
                         }
                     ) {
@@ -163,7 +178,34 @@ fun PureSunniNetworkLiveApp() {
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
-                    onClick = { },
+                    onClick = {
+
+                        val cameraGranted =
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.CAMERA
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                        val microphoneGranted =
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                        if (cameraGranted && microphoneGranted) {
+
+                            startLiveService(context)
+
+                        } else {
+
+                            permissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.CAMERA,
+                                    Manifest.permission.RECORD_AUDIO
+                                )
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
@@ -180,6 +222,23 @@ fun PureSunniNetworkLiveApp() {
                 )
             }
         }
+    }
+}
+
+private fun startLiveService(context: android.content.Context) {
+
+    val intent = Intent(
+        context,
+        StreamingService::class.java
+    )
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        ContextCompat.startForegroundService(
+            context,
+            intent
+        )
+    } else {
+        context.startService(intent)
     }
 }
 
@@ -202,7 +261,8 @@ fun CameraPreview(
 
         cameraProviderFuture.addListener({
 
-            val cameraProvider = cameraProviderFuture.get()
+            val cameraProvider =
+                cameraProviderFuture.get()
 
             val preview = Preview.Builder()
                 .build()
